@@ -1,0 +1,13 @@
+[Unit]
+Description=kiyoshimo
+After=syslog.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/kiyoshimo
+ExecStart=/usr/bin/python3 /opt/kiyoshimo/kiyoshimo.py
+TimeoutStopSec=5
+StandardOutput=null
+
+[Install]
+WantedBy = multi-user.target
