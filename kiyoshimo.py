@@ -19,6 +19,38 @@ import json
 
 class Kiyoshimo(AwsIotContoller):
     pass
+    sensors = {
+        1: {
+            'status': False,
+            'sequenceNumber': None
+        },
+        2: {
+            'status': False,
+            'sequenceNumber': None
+        }
+    }
+
+    def stat(self, result):
+        if self.sensors[result['logicalID']]['sequenceNumber'] == result['sequenceNumber']:
+            return
+
+        before = self.sensors[result['logicalID']]['status']
+        self.sensors[result['logicalID']]['status'] = self.is_open(result['HALLIC'])
+        self.sensors[result['logicalID']]['sequenceNumber'] = result['sequenceNumber']
+
+        if before != self.sensors[result['logicalID']]['status']:
+            self.update()
+
+    def update(self):
+        status = {
+            "sensors": self.sensors
+        }
+        self._shadow_update(status)
+
+    @staticmethod
+    def is_open(state):
+        return bool(state & 0b11)
+
 
 def toBytes(line):
     payload = []
@@ -126,6 +158,9 @@ if __name__ == '__main__':
                 devices[payload['endDeviceSID']] = payload['sequenceNumber']
 
                 kiyoshimo.publish_status(payload['endDeviceSID'], json.dumps(payload))
+
+                if payload.get('HALLIC', None) is not None:
+                    kiyoshimo.stat(payload)
 
             except Exception as e:
                 logger.exception(e)
