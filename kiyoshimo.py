@@ -30,7 +30,7 @@ def toBytes(line):
 
     payload = []
     for i in range(int((len(line)-3)/ 2)):
-        payload.append(int(line[1+i*2:3+i*2], 16))
+        payload.append(int(line[1 + i * 2:3 + i * 2], 16))
 
     return payload
 
@@ -43,7 +43,7 @@ def joinHex(l):
     return r
 
 def joinStr(l):
-    r = '0x'
+    r = ''
     for x in l:
         r += '{0:02X}'.format(x)
     return r
@@ -56,7 +56,9 @@ def checkSum(l):
 
 def parse(line):
     byteList = toBytes(line)
-    result = {}
+    result = {
+        "raw": str(line)
+    }
 
     if not checkSum(byteList):
         raise RuntimeError()
@@ -64,7 +66,7 @@ def parse(line):
     result['routerSID'] = joinStr(byteList[0:4])
     result['Lqi'] = byteList[4]
     result['sequenceNumber'] = joinHex(byteList[5:7])
-    result['endDeviceSID'] = joinHex(byteList[7:11])
+    result['endDeviceSID'] = joinStr(byteList[7:11])
     result['logicalID'] = byteList[11]
     result['sensorType'] = byteList[12]
     result['palVersion'] = byteList[13]
@@ -80,16 +82,19 @@ def parse(line):
         _buf['exByte'] = byteList[_cursor + 2]
         _dataLange = byteList[_cursor + 3]
         _buf['data'] = joinHex(byteList[_cursor + 4:_cursor + 4 + _dataLange])
-        sensorDatas.append(_buf)
         _cursor += 4 + _dataLange
 
         if _buf['dataSource'] == 0x30:
             if _buf['exByte'] == 0x08:
                 result['battery'] = _buf['data']
+                continue
             elif _buf['exByte'] == 0x01:
                 result['ADC1'] = _buf['data']
+                continue
         elif _buf['dataSource'] == 0x00:
             result['HALLIC'] = _buf['data']
+            continue
+        sensorDatas.append(_buf)
 
     result['data'] = sensorDatas
 
@@ -99,6 +104,7 @@ def parse(line):
 
 if __name__ == '__main__':
     from naganami_mqtt.awsiot import getAwsCredentialFromJson
+    import sys
     credential = getAwsCredentialFromJson('/aws/iot.json')
     kiyoshimo = Kiyoshimo(credential)
 
@@ -123,7 +129,9 @@ if __name__ == '__main__':
 
             except Exception as e:
                 logger.exception(e)
-                raise e
+
+    except KeyboardInterrupt:
+        sys.exit(0)
 
     except Exception as e:
         logger.exception(e)
